@@ -133,9 +133,6 @@ if (is_writable($sDataFile)) {
     echo "Data file is not writable!";
 }
 
-//print_r($aFinalResult);
-
-
 
 
 
