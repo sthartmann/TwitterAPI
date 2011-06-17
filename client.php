@@ -12,6 +12,9 @@ $iCount = 50;                           // count of tweets
 
 $bUseFilter = true;                     // activate badword filter
 
+$sDataSeperator = "@#@";                // seperator for differnt tweets in data file
+$sIDSeperator = "@*@";                  // seperator for tweet id
+
 // --- SYS CONFIG --- (no changes required)
 $sLastidFile = 'data/lastid.twitter';
 $sDataFile = 'data/data.twitter';
@@ -27,10 +30,27 @@ $search = new TwitterSearch();
 $aHashtag = file($sHashtagFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
 $aBadwords = file($sBadwordFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
 
-// ... get last tweet id
-$aLastid = file($sLastidFile, FILE_SKIP_EMPTY_LINES | FILE_IGNORE_NEW_LINES);
-$iLastid = $aLastid[0];
 
+
+// --- FILE INPUT
+// read file and create array
+$aDataFile = file($sDataFile, FILE_SKIP_EMPTY_LINES | FILE_IGNORE_NEW_LINES);
+$aCurrentData = explode("@#@",$aDataFile[0]);
+
+// create twitter like array
+foreach($aCurrentData as $i => $value) {
+
+    if ($value != "") {
+        // ... use tweet id as key
+        $aValues = explode("@*@", $value);
+        $aCurrentFile[$aValues[0]] = $aValues[1];
+    }
+
+}
+
+
+
+// --- TWITTER MAGIC
 // ... query the twitter search for all hashtags
 for ($i = 0; $i < count($aHashtag); $i++) {
 
@@ -56,10 +76,6 @@ for ($i = 0; $i < count($aResult); $i++) {
     // ... only process "new" tweets
     if ($aResult[$i]->id_str > $iLastid) {
 
-        if ($iCurrentLastid < $aResult[$i]->id_str) {
-            $iCurrentLastid = $aResult[$i]->id_str;
-        }
-
         $bFilter = true;
 
         if ($bUseFilter) {
@@ -78,12 +94,46 @@ for ($i = 0; $i < count($aResult); $i++) {
         }
 
         if ($bFilter) {
-            echo $aResult[$i]->from_user . " - " . $aResult[$i]->text."\n";
+            $aResultSet[$aResult[$i]->id_str] = $aResult[$i]->from_user . ": " . $aResult[$i]->text;
+            //echo $aResult[$i]->from_user . ": " . $aResult[$i]->text."\n";
         }
         
     }
 
 }
+
+
+// --- FILE OUTPUT
+
+$aFinalResult = $aResultSet + $aCurrentFile;
+krsort($aFinalResult);
+
+// ... build data string
+$i = 0;
+foreach($aFinalResult as $tweetID => $tweetText) {
+
+    if ($i < $iCount) {
+        $sResult.= $tweetID."@*@".$tweetText."@#@";
+    }
+
+}
+
+// ... write to file
+if (is_writable($sDataFile)) {
+
+    if (!$fileHandle = fopen($sDataFile, "w")) {
+        echo "Error opening data file!";
+    }
+
+    if(!fwrite($fileHandle, $sResult)) {
+        echo "Error writing to data file!";
+    }
+
+} else {
+    echo "Data file is not writable!";
+}
+
+//print_r($aFinalResult);
 
 
 
